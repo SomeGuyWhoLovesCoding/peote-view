@@ -170,7 +170,6 @@ class Shader
 	::end::
 
 	::if hasTEXTURE_FUNCTIONS::
-		// function to get texture color
 		vec4 getTextureColor(int TXTNUM, vec2 vTexCoord) {
 		::foreach TEXTURES::
 			::foreach ELEMENT_LAYERS::
@@ -190,9 +189,8 @@ class Shader
 		::foreach TEXTURE_DEFAULTS::
 			if (TXTNUM == ::LAYER::) {return(::DEFAULT_VALUE::);}		
 		::end::
+		return vec4(0.0); // fallback
 		}
-	::else:: 
-		::if hasFRAGMENT_INJECTION::#define getTextureColor(a,b) vec4(0.0,0.0,0.0,0.0)::end::
 	::end::
 
 	::if hasTEXTURE_FUNCTIONS::
@@ -250,7 +248,7 @@ class Shader
 		vec4 col = ::FRAGMENT_CALC_LAYER::;
 		
 		::if isDISCARD:: 
-			if (col.a <= ::DISCARD::) discard;
+			//if (col.a <= ::DISCARD::) discard;
 		::end::
 		
 		::if isPICKING::
