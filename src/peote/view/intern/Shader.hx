@@ -8,7 +8,7 @@ class Shader
 
 	@:allow(peote.view) static var vertexShader(default, null):String =		
 	"
-	#version 300 es
+	::if isES3::#version 300 es::end::
 	::if VERTEX_INT_PRECISION::precision ::VERTEX_INT_PRECISION:: int; ::end::
 	::if VERTEX_FLOAT_PRECISION::precision ::VERTEX_FLOAT_PRECISION:: float; ::end::
 	::if VERTEX_SAMPLER_PRECISION::precision ::VERTEX_SAMPLER_PRECISION:: sampler2D; ::end::
@@ -258,7 +258,7 @@ class Shader
 		::else::
 			::if !isES3::gl_Frag::end::Color = col;
 			// this fixing problem on old FF if alpha goes zero
-			// ::if !isES3::gl_Frag::end::Color.w = clamp(::if !isES3::gl_Frag::end::Color.w, 0.001, 1.0);
+			// ::if !isES3::gl_Frag::end::Color.w = clamp(::if !isES3::gl_Frag::end::Color.w, 0.003, 1.0);
 		::end::
 	}
 	";

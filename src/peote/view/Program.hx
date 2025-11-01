@@ -382,7 +382,6 @@ class Program
 				glShaderConfig.IN = "in";
 				glShaderConfig.VARIN = "in";
 				glShaderConfig.VAROUT = "out";
-				//Sys.println("Yay, you're in new gles3 version cracked version");
 			}
 			if (PeoteGL.Version.isUBO) glShaderConfig.isUBO = true;
 			if (PeoteGL.Version.isINSTANCED) glShaderConfig.isINSTANCED = true;

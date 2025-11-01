@@ -123,7 +123,12 @@ abstract PeoteGL(LimeGLRenderContext) from LimeGLRenderContext to LimeGLRenderCo
 				trace("Force WEBGL1.");
 				return cast context.webgl;
 			#else
-				if (context.webgl != null) {
+				if (context.webgl2 != null) {
+					trace("WEBGL2 detected.");
+					Version.isES3 = true;
+					return cast context.webgl2;
+				}
+				else if (context.webgl != null) {
 					trace("WEBGL1 detected.");
 					return cast context.webgl;
 				}
@@ -134,12 +139,21 @@ abstract PeoteGL(LimeGLRenderContext) from LimeGLRenderContext to LimeGLRenderCo
 			#end				
 			
 		#else
-			#if peoteview_es2
+			#if peoteview_es3
+				if (context.gles3 == null) throw("Sorry, only works with OpenGL-ES3.");
+				trace("Force OpenGL-ES3.");
+				return cast context.gles3;
+			#elseif peoteview_es2
 				if (context.gles2 == null) throw("Sorry, only works with OpenGL-ES2.");
 				trace("Force OpenGL-ES2.");
 				return cast context.gles2;
 			#else
-				if (context.gles2 != null) {
+				if (context.gles3 != null) {
+					trace("OpenGL-ES3 detected.");
+					Version.isES3 = true;
+					return cast context.gles3;
+				}
+				else if (context.gles2 != null) {
 					trace("OpenGL-ES2 detected.");
 					return cast context.gles2;
 				}
@@ -181,14 +195,14 @@ class Version {
 		
 	#elseif peoteview_es2  // force compiling without runtimecheck for UBOs/InstanceDrawing
 	
-		static inline public var isES3 = true;
-		static inline var isUBO = true;
-		static inline var isINSTANCED = true;
-		static inline var isVAO = true;
+		static inline public var isES3 = false;
+		static inline var isUBO = false;
+		static inline var isINSTANCED = false;
+		static inline var isVAO = false;
 		
 	#else // check at runtime (depends on available es-version) 
 
-		static public var isES3(default, set) = true;		// <---- set this true if detected gl-Version is es3
+		static public var isES3(default, set) = false;		// <---- set this true if detected gl-Version is es3
 		static inline function set_isES3(b:Bool):Bool {
 			#if peoteview_uniformbuffers
 				isUBO = b;
@@ -205,17 +219,17 @@ class Version {
 		#if peoteview_uniformbuffers
 			static var isUBO = false; // is set at runtime throught isES3
 		#else
-			static inline var isUBO = true; // force compiling without runtimecheck for UBOs
+			static inline var isUBO = false; // force compiling without runtimecheck for UBOs
 		#end
 		#if peoteview_instancedrawing
 			static var isINSTANCED = false;  // is set at runtime throught isES3
 		#else
-			static inline var isINSTANCED = true; // force compiling without runtimecheck for InstanceDrawing
+			static inline var isINSTANCED = false; // force compiling without runtimecheck for InstanceDrawing
 		#end
 		#if peoteview_vertexarrayobjects
 			static var isVAO = false;  // is set at runtime throught isES3
 		#else
-			static inline var isVAO = true; // force compiling without runtimecheck for vertex array objects
+			static inline var isVAO = false; // force compiling without runtimecheck for vertex array objects
 		#end
 		
 	#end	
