@@ -559,16 +559,8 @@ class $className implements peote.view.intern.BufferInterface
 		//trace("        ---buffer.render---");
 		#if peoteview_queueGLbuffering
 		//TODO: put all in one glCommandQueue (+ loop)
-		while (updateGLBufferElementQueue.length != 0) {
-			var element = updateGLBufferElementQueue.pop(); // pop from end is safer
-			if (element != null && element.bytePos != -1) {
-				_updateElement(element);
-			}
-		}
-		while (setNewGLContextQueue.length != 0) {
-			var newGl = setNewGLContextQueue.pop();
-			if (newGl != null) _setNewGLContext(newGl);
-		}
+		if (updateGLBufferElementQueue.length > 0) _updateElement(updateGLBufferElementQueue.shift());
+		if (setNewGLContextQueue.length > 0) _setNewGLContext(setNewGLContextQueue.shift());
 		/*if (queueDeleteGLBuffer) {
 			queueDeleteGLBuffer = false;
 			_deleteGLBuffer();

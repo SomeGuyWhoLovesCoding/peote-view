@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.06 (09/03/2025)
+1.06 (09/02/2025)
 -----------------
 * Refactored `utils.Loader` into `peote.view.Load` to get better DOXiNation and more simple into future usage
 * Added `textArray()` into `Load`, fix some bug where load-callback not gets trigerred if loadAll-callback param is null
