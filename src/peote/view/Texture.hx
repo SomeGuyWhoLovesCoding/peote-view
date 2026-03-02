@@ -13,6 +13,8 @@ import peote.view.intern.GLTool;
 import peote.view.intern.TexUtils;
 import peote.view.intern.IntUtil;
 
+import peote.view.intern.GLContextCleaner;
+
 /**
 	A `Texture` can be used inside of `Program`s to render image data.  
 	It can store multiple `TextureData` in slots that can be divided into tiles for texture atlases.  
@@ -303,10 +305,18 @@ class Texture
 		#if peoteview_debug_texture
 		trace("Texture clearOldGLContext");
 		#end
-		//TODO
-		gl.deleteTexture(glTexture);
+		GLContextCleaner.queue(gl, {
+			programs: [],
+			shaders: [],
+			buffers: [],
+			vaos: [],
+			textures: [glTexture],
+			framebuffers: [framebuffer],
+			renderbuffers: [glDepthBuffer]
+		});
 		glTexture = null;
-		deleteFramebuffer();
+		framebuffer = null;
+		glDepthBuffer = null;
 	}
 	
 	private inline function createTexture()	{

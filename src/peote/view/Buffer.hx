@@ -167,7 +167,7 @@ class $className implements peote.view.intern.BufferInterface
 	{
 		if (newGl != null && newGl != _gl) // only if different GL - Context	
 		{
-			if (_gl != null) deleteGLBuffer(); // < ------- TODO BUGGY with different gl-context (see multiwindow sample)
+			if (_gl != null) deleteGLBuffer();
 			
 			#if peoteview_debug_buffer
 			trace("Buffer setNewGLContext");
@@ -220,15 +220,19 @@ class $className implements peote.view.intern.BufferInterface
 		#end
 	}
 	*/
-	inline function deleteGLBuffer():Void
-	{
+	inline function deleteGLBuffer():Void {
 		#if peoteview_debug_buffer
 		trace("delete GlBuffer");
 		#end
-		_gl.deleteBuffer(_glBuffer);
-		
-		if (peote.view.PeoteGL.Version.isINSTANCED)	_gl.deleteBuffer(_glInstanceBuffer);
-		if (peote.view.PeoteGL.Version.isVAO) _gl.deleteVertexArray(_glVAO);
+		peote.view.intern.GLContextCleaner.queue(_gl, {
+			programs: [],
+			shaders: [],
+			buffers: [_glBuffer, _glInstanceBuffer],
+			vaos: [_glVAO],
+			textures: [],
+			framebuffers: [],
+			renderbuffers: []
+		});
 	}
 	/*
 	inline function updateGLBuffer():Void
