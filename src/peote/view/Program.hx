@@ -525,20 +525,20 @@ class Program
 		if ( !isPicking ) {
 			uTIME = gl.getUniformLocation(glProg, "uTime");
 			var uniformFloatLocations_temp = new Array<GLUniformLocation>();
-			var uniformVec2Locations_temp = new Array<GLUniformLocation>();
+			var uniformVectorLocations_temp = new Array<GLUniformLocation>();
 			for (u in uniformFloats) uniformFloatLocations_temp.push( gl.getUniformLocation(glProg, u.name) );
-			for (u in uniformVec2s) uniformVec2Locations_temp.push( gl.getUniformLocation(glProg, u.name) );
+			for (u in uniformVectors) uniformVectorLocations_temp.push( gl.getUniformLocation(glProg, u.name) );
 			uniformFloatLocations = Vector.fromArrayCopy(uniformFloatLocations_temp);
-			uniformVec2Locations = Vector.fromArrayCopy(uniformVec2Locations_temp);
+			uniformVectorLocations = Vector.fromArrayCopy(uniformVectorLocations_temp);
 		}
 		else {
 			uTIME_PICK = gl.getUniformLocation(glProg, "uTime");
 			var uniformFloatPickLocations_temp = new Array<GLUniformLocation>();
-			var uniformVec2PickLocations_temp = new Array<GLUniformLocation>();
+			var uniformVectorPickLocations_temp = new Array<GLUniformLocation>();
 			for (u in uniformFloats) uniformFloatPickLocations_temp.push( gl.getUniformLocation(glProg, u.name) );
-			for (u in uniformVec2s) uniformVec2PickLocations_temp.push( gl.getUniformLocation(glProg, u.name) );
+			for (u in uniformVectors) uniformVectorPickLocations_temp.push( gl.getUniformLocation(glProg, u.name) );
 			uniformFloatPickLocations = Vector.fromArrayCopy(uniformFloatPickLocations_temp);
-			uniformVec2PickLocations = Vector.fromArrayCopy(uniformVec2PickLocations_temp);
+			uniformVectorPickLocations = Vector.fromArrayCopy(uniformVectorPickLocations_temp);
 		}
 		
 		if (!isPicking) {
@@ -580,12 +580,12 @@ class Program
 	var uniformFloatLocations:Vector<GLUniformLocation>;
 	var uniformFloatPickLocations:Vector<GLUniformLocation>;
 
-	var uniformVec2sVertex:Array<UniformVec2> = null;
-	var uniformVec2sFragment:Array<UniformVec2> = null;
+	var uniformVectorsVertex:Array<UniformVector> = null;
+	var uniformVectorsFragment:Array<UniformVector> = null;
 	// TODO: target-optimization for faster access
-	var uniformVec2s:Vector<UniformVec2> = Vector.fromArrayCopy([]);
-	var uniformVec2Locations:Vector<GLUniformLocation>;
-	var uniformVec2PickLocations:Vector<GLUniformLocation>;
+	var uniformVectors:Vector<UniformVector> = Vector.fromArrayCopy([]);
+	var uniformVectorLocations:Vector<GLUniformLocation>;
+	var uniformVectorPickLocations:Vector<GLUniformLocation>;
 
 	private function parseColorFormula():Void {
 		var formula:String = "";
@@ -707,12 +707,12 @@ class Program
 		@param uniformFloats an Array of custom `UniformFloat`s
 		@param autoUpdate set it to `true` (update) or `false` (no update), otherwise the `.autoUpdate` property is used
 	**/
-	public function injectIntoVertexShader(glslCode:String = "", uTimeUniformEnabled = false, uniformFloats:Array<UniformFloat> = null, ?autoUpdate:Null<Bool>, uniformVec2s:Array<UniformVec2> = null):Void {
+	public function injectIntoVertexShader(glslCode:String = "", uTimeUniformEnabled = false, uniformFloats:Array<UniformFloat> = null, ?autoUpdate:Null<Bool>, uniformVectors:Array<UniformVector> = null):Void {
 		uniformFloatsVertex = uniformFloats;
-		uniformVec2sVertex = uniformVec2s;
-		glShaderConfig.VERTEX_INJECTION = ((uTimeUniformEnabled && !buffer.hasTime()) ? "uniform float uTime;" : "") + generateUniformFloatsGLSL(uniformFloats) + generateUniformVec2sGLSL(uniformVec2s) + glslCode;
+		uniformVectorsVertex = uniformVectors;
+		glShaderConfig.VERTEX_INJECTION = ((uTimeUniformEnabled && !buffer.hasTime()) ? "uniform float uTime;" : "") + generateUniformFloatsGLSL(uniformFloats) + generateUniformVectorsGLSL(uniformVectors) + glslCode;
 		accumulateUniformsFloat();
-		accumulateUniformsVec2();
+		accumulateUniformsVector();
 		checkAutoUpdate(autoUpdate);
 	}
 
@@ -723,20 +723,32 @@ class Program
 		@param uniformFloats an Array of custom `UniformFloat`s
 		@param autoUpdate set it to `true` (update) or `false` (no update), otherwise the `.autoUpdate` property is used
 	**/
-	public function injectIntoFragmentShader(glslCode:String = "", uTimeUniformEnabled = false, uniformFloats:Array<UniformFloat> = null, ?autoUpdate:Null<Bool>, uniformVec2s:Array<UniformVec2> = null):Void {
+	public function injectIntoFragmentShader(glslCode:String = "", uTimeUniformEnabled = false, uniformFloats:Array<UniformFloat> = null, ?autoUpdate:Null<Bool>, uniformVectors:Array<UniformVector> = null):Void {
 		glShaderConfig.hasFRAGMENT_INJECTION = (glslCode == "") ? false : true;
 		uniformFloatsFragment = uniformFloats;
-		uniformVec2sFragment = uniformVec2s;
-		glShaderConfig.FRAGMENT_INJECTION = ((uTimeUniformEnabled) ? "uniform float uTime;" : "") + generateUniformFloatsGLSL(uniformFloats) + generateUniformVec2sGLSL(uniformVec2s) + glslCode;
+		uniformVectorsFragment = uniformVectors;
+		glShaderConfig.FRAGMENT_INJECTION = ((uTimeUniformEnabled) ? "uniform float uTime;" : "") + generateUniformFloatsGLSL(uniformFloats) + generateUniformVectorsGLSL(uniformVectors) + glslCode;
 		accumulateUniformsFloat();
-		accumulateUniformsVec2();
+		accumulateUniformsVector();
 		checkAutoUpdate(autoUpdate);
 	}
 
-	private function generateUniformVec2sGLSL(uniformVec2s:Array<UniformVec2>):String {
+	private function generateUniformVectorsGLSL(uniformVectors:Array<UniformVector>):String {
 		var out:String = "";
-		if (uniformVec2s != null)
-			for (u in uniformVec2s) out += "uniform vec2 " + u.name + ";";
+		if (uniformVectors != null) {
+			for (u in uniformVectors) {
+				var type:String = "float";
+				if (u.value != null) {
+					switch(u.value.length) {
+						case 2: type = "vec2";
+						case 3: type = "vec3";
+						case 4: type = "vec4";
+					}
+					if (u.value.length >= 5) type = "vec4"; // there isn't a normal vec5 anyway
+					out += "uniform " + type + " " + u.name + ";";
+				}
+			}
+		}
 		return out;
 	}
 
@@ -765,21 +777,21 @@ class Program
 		}
 	}
 
-	private function accumulateUniformsVec2() {
-		if (uniformVec2sVertex == null) {
-			if (uniformVec2sFragment != null) uniformVec2s = Vector.fromArrayCopy(uniformVec2sFragment);
+	private function accumulateUniformsVector() {
+		if (uniformVectorsVertex == null) {
+			if (uniformVectorsFragment != null) uniformVectors = Vector.fromArrayCopy(uniformVectorsFragment);
 		}
-		else if (uniformVec2sFragment == null) {
-			uniformVec2s = Vector.fromArrayCopy(uniformVec2sVertex);
+		else if (uniformVectorsFragment == null) {
+			uniformVectors = Vector.fromArrayCopy(uniformVectorsVertex);
 		}
 		else {
-			var uniformVec2s_temp:Array<UniformVec2> = uniformVec2sVertex;
-			for (u in uniformVec2sFragment) {
-				if (uniformVec2s_temp.indexOf(u) < 0) {
-					uniformVec2s_temp.push(u);
+			var uniformVectors_temp:Array<UniformVector> = uniformVectorsVertex;
+			for (u in uniformVectorsFragment) {
+				if (uniformVectors_temp.indexOf(u) < 0) {
+					uniformVectors_temp.push(u);
 				}
 			}
-			uniformVec2s = Vector.fromArrayCopy(uniformVec2s_temp);
+			uniformVectors = Vector.fromArrayCopy(uniformVectors_temp);
 		}
 	}
 
@@ -1486,7 +1498,7 @@ class Program
 			}
 			
 			gl.uniform1f (uTIME, peoteView.time);
-			render_activeUniformFloatsAndVec2s();
+			render_activeUniformFloatsAndVectors();
 			
 			peoteView.setColor(colorEnabled);
 			peoteView.setGLDepth(zIndexEnabled);			
@@ -1526,7 +1538,7 @@ class Program
 		}
 		
 		gl.uniform1f (uTIME, peoteView.time);
-		render_activeUniformFloatsAndVec2s();
+		render_activeUniformFloatsAndVectors();
 		
 		peoteView.setColor(colorEnabled);
 		peoteView.setGLDepth(zIndexEnabled);		
@@ -1555,7 +1567,7 @@ class Program
 		                            (display.y + display.yOffset + yOff) / display.yz);
 		
 		gl.uniform1f (uTIME_PICK, peoteView.time);
-		render_activeUniformFloatsAndVec2s(true);
+		render_activeUniformFloatsAndVectors(true);
 		
 		peoteView.setGLDepth((toElement == -1) ? zIndexEnabled : false); // disable for getAllElementsAt() in peoteView
 		
@@ -1566,15 +1578,34 @@ class Program
 		gl.useProgram (null);		
 	}
 
-	private function render_activeUniformFloatsAndVec2s(isPicking:Bool = false):Void {
+	private function render_activeUniformFloatsAndVectors(isPicking:Bool = false):Void {
 		if (uniformFloats != null) {
 			var locations = (isPicking) ? uniformFloatPickLocations : uniformFloatLocations;
 			for (i in 0...uniformFloats.length) gl.uniform1f(locations[i], uniformFloats[i].value);
 		}
-		if (uniformVec2s != null) {
-			var locations = (isPicking) ? uniformVec2PickLocations : uniformVec2Locations;
-			for (i in 0...uniformVec2s.length) {
-				gl.uniform2f(locations[i], uniformVec2s[i].value[0], uniformVec2s[i].value[1]);
+		if (uniformVectors != null) {
+			var locations = (isPicking) ? uniformVectorPickLocations : uniformVectorLocations;
+			for (i in 0...uniformVectors.length) {
+				var values = uniformVectors[i].value;
+				switch (values.length) {
+					case 1:
+						gl.uniform1f(locations[i], uniformVectors[i].value[0]);
+					case 2:
+						gl.uniform2f(locations[i],
+							uniformVectors[i].value[0], uniformVectors[i].value[1]);
+					case 3:
+						gl.uniform3f(locations[i], uniformVectors[i].value[0],
+							uniformVectors[i].value[1], uniformVectors[i].value[2]);
+					case 4:
+						gl.uniform4f(locations[i], uniformVectors[i].value[0],
+							uniformVectors[i].value[1], uniformVectors[i].value[2],
+							uniformVectors[i].value[3]);
+				}
+				if (values.length >= 5) {
+					gl.uniform4f(locations[i], uniformVectors[i].value[0],
+						uniformVectors[i].value[1], uniformVectors[i].value[2],
+						uniformVectors[i].value[3]);
+				}
 			}
 		}
 	}
