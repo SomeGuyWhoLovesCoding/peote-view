@@ -19,6 +19,8 @@ import peote.view.intern.BufferInterface;
 import peote.view.intern.UniformBufferView;
 import peote.view.intern.UniformBufferDisplay;
 
+import haxe.ds.Vector;
+
 /*
     o-o    o-o  o-o-o  o-o
    o   o  o        o      o
