@@ -20,6 +20,8 @@ import peote.view.intern.UniformBufferView;
 import peote.view.PeoteGL.GLTexture;
 import peote.view.PeoteGL.GLFramebuffer;
 
+import peote.view.intern.GLContextCleaner;
+
 /*
     o-o    o-o  o-o-o  o-o
    o   o  o        o      o
@@ -800,6 +802,7 @@ class PeoteView
 	public function render(context:RenderContext = null):Void
 	{
 		//trace("===peoteView.render===");
+    	GLContextCleaner.flush(gl);
 		renderFramebuffer(context);
 		initGLViewport(width, height);		
 		renderPart();
