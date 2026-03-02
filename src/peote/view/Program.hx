@@ -12,6 +12,7 @@ import peote.view.BlendFactor;
 import peote.view.BlendFunc;
 
 import peote.view.intern.Util;
+import peote.view.intern.GLContextCleaner;
 import peote.view.intern.GLTool;
 import peote.view.intern.RenderList;
 import peote.view.intern.RenderListItem;
