@@ -410,7 +410,7 @@ class Program
 			createProgram();
 			
 			// setNewGLContext for all textures
-			for (t in activeTextures) t.setNewGLContext(gl);		
+			for (t in activeTextures) t.setNewGLContext(gl);
 		}
 	}
 
@@ -801,19 +801,19 @@ class Program
 		@param autoUpdate set it to `true` (update) or `false` (no update), otherwise the `.autoUpdate` property is used
 	**/
 	public function injectIntoFragmentShader(glslCode:String = "", uTimeUniformEnabled = false, 
-		uniformFloats:Array<UniformFloat> = null, ?autoUpdate:Null<Bool>, 
-		uniformVectors:Array<UniformVector> = null):Void 
+		uniformFloats_:Array<UniformFloat> = null, ?autoUpdate:Null<Bool>, 
+		uniformVectors_:Array<UniformVector> = null):Void 
 	{
 		glShaderConfig.hasFRAGMENT_INJECTION = (glslCode == "") ? false : true;
-		uniformFloatsFragment = uniformFloats;
-		uniformVectorsFragment = uniformVectors;
+		uniformFloatsFragment = uniformFloats_;
+		uniformVectorsFragment = uniformVectors_;
 		
 		// Create UBO if using ES3
-		if (PeoteGL.Version.isUBO && (uniformFloats != null || uniformVectors != null)) {
+		if (PeoteGL.Version.isUBO && (uniformFloats_ != null || uniformVectors_ != null)) {
 			hasCustomUBO = true;
 			uniformBufferCustom = new UniformBufferCustom(
-				uniformFloats != null ? uniformFloats : [],
-				uniformVectors != null ? uniformVectors : []
+				uniformFloats_ != null ? uniformFloats_ : [],
+				uniformVectors_ != null ? uniformVectors_ : []
 			);
 			
 			// Don't create GL buffer yet if gl is null - it will be created in setNewGLContext
@@ -829,15 +829,15 @@ class Program
 			var uboDecl = "layout(std140) uniform uboCustom {\n";
 			
 			// Add floats
-			if (uniformFloats != null) {
-				for (u in uniformFloats) {
+			if (uniformFloats_ != null) {
+				for (u in uniformFloats_) {
 					uboDecl += "    float " + u.name + ";\n";
 				}
 			}
 			
 			// Add vectors - all as vec4 in UBO
-			if (uniformVectors != null) {
-				for (u in uniformVectors) {
+			if (uniformVectors_ != null) {
+				for (u in uniformVectors_) {
 					uboDecl += "    vec4 " + u.name + ";\n";
 				}
 			}
@@ -847,8 +847,8 @@ class Program
 			// IMPORTANT: Add macros to make vec4 uniforms work as expected
 			// This creates macros that map the uniform name to the appropriate components
 			var macros = "";
-			if (uniformVectors != null) {
-				for (u in uniformVectors) {
+			if (uniformVectors_ != null) {
+				for (u in uniformVectors_) {
 					var originalType = "vec4"; // default
 					if (u.value != null) {
 						switch(u.value.length) {
@@ -886,8 +886,8 @@ class Program
 			}
 			
 			glShaderConfig.FRAGMENT_INJECTION = timeUniform 
-				+ generateUniformFloatsGLSL(uniformFloats) 
-				+ generateUniformVectorsGLSL(uniformVectors) + "\n" + glslCode;
+				+ generateUniformFloatsGLSL(uniformFloats_) 
+				+ generateUniformVectorsGLSL(uniformVectors_) + "\n" + glslCode;
 		}
 		
 		accumulateUniformsFloat();
@@ -1679,7 +1679,7 @@ class Program
 			}
 			
 			gl.uniform1f (uTIME, peoteView.time);
-			if (!hasCustomUBO) render_activeUniformFloatsAndVectors();
+			render_activeUniformFloatsAndVectors();
 			
 			peoteView.setColor(colorEnabled);
 			peoteView.setGLDepth(zIndexEnabled);			
@@ -1720,7 +1720,7 @@ class Program
 		}
 		
 		gl.uniform1f (uTIME, peoteView.time);
-		if (!hasCustomUBO) render_activeUniformFloatsAndVectors();
+		render_activeUniformFloatsAndVectors();
 		
 		peoteView.setColor(colorEnabled);
 		peoteView.setGLDepth(zIndexEnabled);		
@@ -1750,7 +1750,7 @@ class Program
 		
 		gl.uniform1f (uTIME_PICK, peoteView.time);
 
-		if (!hasCustomUBO) render_activeUniformFloatsAndVectors(true);
+		render_activeUniformFloatsAndVectors(true);
 		
 		peoteView.setGLDepth((toElement == -1) ? zIndexEnabled : false); // disable for getAllElementsAt() in peoteView
 		
@@ -1762,13 +1762,24 @@ class Program
 	}
 
 	private function render_activeUniformFloatsAndVectors(isPicking:Bool = false):Void {
-		if (uniformFloats != null) {
-			var locations = (isPicking) ? uniformFloatPickLocations : uniformFloatLocations;
-			for (i in 0...uniformFloats.length) gl.uniform1f(locations[i], uniformFloats[i].value);
+		var mustUpdateUBO = false;
+
+		var locations = (isPicking) ? uniformFloatPickLocations : uniformFloatLocations;
+		for (i in 0...uniformFloats.length) {
+			if (PeoteGL.Version.isES3 && hasCustomUBO) {
+				updateUniformFloat(uniformFloats[i], uniformFloats[i].value);
+				mustUpdateUBO = true;
+			} else {
+				gl.uniform1f(locations[i], uniformFloats[i].value);
+			}
 		}
-		if (uniformVectors != null) {
-			var locations = (isPicking) ? uniformVectorPickLocations : uniformVectorLocations;
-			for (i in 0...uniformVectors.length) {
+		
+		var locations = (isPicking) ? uniformVectorPickLocations : uniformVectorLocations;
+		for (i in 0...uniformVectors.length) {
+			if (PeoteGL.Version.isES3 && hasCustomUBO) {
+				updateUniformVector(uniformVectors[i], uniformVectors[i].value);
+				mustUpdateUBO = true;
+			} else {
 				var values = uniformVectors[i].value;
 				switch (values.length) {
 					case 1:
@@ -1791,6 +1802,10 @@ class Program
 				}
 			}
 		}
+
+		if (PeoteGL.Version.isES3 && hasCustomUBO && mustUpdateUBO) {
+			uniformBufferCustom.update(gl);
+		}
 	}
 
 	public function updateUniformFloat(uniform:UniformFloat, value:Float):Void {
@@ -1798,8 +1813,8 @@ class Program
 		if (uniformFloats_temp != null) {
 			var index = uniformFloats_temp.indexOf(uniform);
 			if (index >= 0) {
-				@:privateAccess uniform._value = value;
-				if (hasCustomUBO && gl != null) {
+				var oldValue = uniformBufferCustom.getFloat(index);
+				if (hasCustomUBO && gl != null && value != oldValue) {
 					uniformBufferCustom.updateFloat(gl, index, value);
 				}
 			}
@@ -1812,8 +1827,16 @@ class Program
 		if (uniformVectors_temp != null) {
 			var index = uniformVectors_temp.indexOf(uniform);
 			if (index >= 0) {
-				@:privateAccess uniform._value = value;
-				if (hasCustomUBO && gl != null) {
+				var oldValue = uniformBufferCustom.getVector(index);
+				oldValue.resize(value.length);
+				var isMatch = true;
+				for (i in 0...oldValue.length) {
+					if (value[i] != oldValue[i]) {
+						isMatch = false;
+						break;
+					}
+				}
+				if (hasCustomUBO && gl != null && !isMatch) {
 					uniformBufferCustom.updateVector(gl, index, value);
 				}
 			}
