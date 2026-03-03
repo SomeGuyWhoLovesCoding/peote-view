@@ -419,6 +419,7 @@ class Program
 		extensionCache.set("OES_standard_derivatives", gl.getExtension("OES_standard_derivatives") != null);
 		extensionCache.set("EXT_color_buffer_float", gl.getExtension("EXT_color_buffer_float") != null);
 		extensionCache.set("OES_texture_float", gl.getExtension("OES_texture_float") != null);
+		extensionCache.set("EXT_sRGB_writr_control", gl.getExtension("EXT_sRGB_writr_control") != null);
 		for (ext in customFragmentExtensions)
 			if (!extensionCache.exists(ext))
 				extensionCache.set(ext, gl.getExtension(ext) != null);
@@ -432,6 +433,8 @@ class Program
 			glShaderConfig.FRAGMENT_EXTENSIONS.push({EXTENSION:"EXT_color_buffer_float"});
 		else if (extensionCache.get("OES_texture_float"))
 			glShaderConfig.FRAGMENT_EXTENSIONS.push({EXTENSION:"OES_texture_float"});
+		else if (extensionCache.get("EXT_sRGB_writr_control"))
+			glShaderConfig.FRAGMENT_EXTENSIONS.push({EXTENSION:"EXT_sRGB_writr_control"});
 		for (ext in customFragmentExtensions)
 			if (extensionCache.get(ext))
 				glShaderConfig.FRAGMENT_EXTENSIONS.push({EXTENSION: ext});
