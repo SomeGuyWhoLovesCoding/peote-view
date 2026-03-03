@@ -178,7 +178,11 @@ class Shader
 				if (TXTNUM == ::LAYER::) {
 					::foreach UNITS::
 					::if !FIRST ::else ::end::::if !LAST ::if (::UNIT:: < ::UNIT_VALUE::)::end::
-						return(texture::if !isES3::2D::end::(::TEXTURE::, ::TEXCOORD::));
+						vec4 tex = texture::if !isES3::2D::end::(::TEXTURE::, ::TEXCOORD::);
+						::if isES3::
+							tex = vec4(mix(tex.rgb * 12.92, pow(tex.rgb, 0.454545) * 1.055 - 0.055, step(0.0031308, tex.rgb)), tex.a);
+						::end::
+						return(tex);
 					::end::
 				}
 			::end::
