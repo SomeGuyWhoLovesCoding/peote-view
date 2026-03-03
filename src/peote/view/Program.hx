@@ -360,7 +360,7 @@ class Program
 	public function removeFromDisplay(display:Display):Void
 	{
 		#if peoteview_debug_program
-		trace("Remove Program from Display"); // TODO <- PROBLEM with multiwindows-sample
+		trace("Remove Program from Display");
 		#end
 		if (!displays.remove(display)) throw("Error, program is not inside display");
 		display.programList.remove(this);
@@ -575,14 +575,12 @@ class Program
 
 	var uniformFloatsVertex:Array<UniformFloat> = null;
 	var uniformFloatsFragment:Array<UniformFloat> = null;
-	// TODO: target-optimization for faster access
 	var uniformFloats:Vector<UniformFloat> = Vector.fromArrayCopy([]);
 	var uniformFloatLocations:Vector<GLUniformLocation>;
 	var uniformFloatPickLocations:Vector<GLUniformLocation>;
 
 	var uniformVectorsVertex:Array<UniformVector> = null;
 	var uniformVectorsFragment:Array<UniformVector> = null;
-	// TODO: target-optimization for faster access
 	var uniformVectors:Vector<UniformVector> = Vector.fromArrayCopy([]);
 	var uniformVectorLocations:Vector<GLUniformLocation>;
 	var uniformVectorPickLocations:Vector<GLUniformLocation>;
