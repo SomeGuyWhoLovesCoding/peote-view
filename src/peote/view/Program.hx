@@ -17,6 +17,7 @@ import peote.view.intern.GLTool;
 import peote.view.intern.RenderList;
 import peote.view.intern.RenderListItem;
 import peote.view.intern.BufferInterface;
+import peote.view.intern.UniformBufferCustom;
 import peote.view.intern.UniformBufferView;
 import peote.view.intern.UniformBufferDisplay;
 
@@ -281,6 +282,9 @@ class Program
 	var customFragmentExtensions:Array<String> = [];
 	var extensionCache:StringMap<Bool> = new StringMap<Bool>();
 
+	var uniformBufferCustom:UniformBufferCustom;
+	var hasCustomUBO:Bool = false;
+
 	/**
 		Creates a new `Program` instance.
 		@param buffer the `Buffer` what contains the graphical elements to render
@@ -396,6 +400,13 @@ class Program
 			rebuildFragmentExtensions();
 			
 			buffer.setNewGLContext(gl);
+        
+			// RECREATE CUSTOM UBO IF NEEDED
+			if (hasCustomUBO && uniformBufferCustom != null) {
+				//trace("Creating custom UBO buffer now that GL context is available");
+				uniformBufferCustom.createGLBuffer(gl);
+			}
+
 			createProgram();
 			
 			// setNewGLContext for all textures
@@ -431,6 +442,13 @@ class Program
 		#if peoteview_debug_program
 		trace("Program clearOldGLContext");
 		#end
+		
+		// Clear UBO reference
+		if (hasCustomUBO && uniformBufferCustom != null) {
+			uniformBufferCustom.deleteGLBuffer(gl);
+			uniformBufferCustom = null;
+		}
+		
 		queueDeleteProgram();
 	}
 
@@ -508,6 +526,11 @@ class Program
 			if (index != gl.INVALID_INDEX) gl.uniformBlockBinding(glProg, index, UniformBufferView.block);
 			index = gl.getUniformBlockIndex(glProg, "uboDisplay");
 			if (index != gl.INVALID_INDEX) gl.uniformBlockBinding(glProg, index, UniformBufferDisplay.block);
+			index = gl.getUniformBlockIndex(glProg, "uboCustom");
+			if (index != gl.INVALID_INDEX) gl.uniformBlockBinding(glProg, index, UniformBufferCustom.block);
+			
+			//trace('Custom UBO block index: ' + gl.getUniformBlockIndex(glProg, "uboCustom"));
+			//trace('Uniform buffer created: ' + (uniformBufferCustom.uniformBuffer != null));
 		}
 		else
 		{	// Try to optimize here to let use picking shader the same vars
@@ -705,10 +728,63 @@ class Program
 		@param uniformFloats an Array of custom `UniformFloat`s
 		@param autoUpdate set it to `true` (update) or `false` (no update), otherwise the `.autoUpdate` property is used
 	**/
-	public function injectIntoVertexShader(glslCode:String = "", uTimeUniformEnabled = false, uniformFloats:Array<UniformFloat> = null, ?autoUpdate:Null<Bool>, uniformVectors:Array<UniformVector> = null):Void {
+	public function injectIntoVertexShader(glslCode:String = "", uTimeUniformEnabled = false, 
+		uniformFloats:Array<UniformFloat> = null, ?autoUpdate:Null<Bool>, 
+		uniformVectors:Array<UniformVector> = null):Void 
+	{
 		uniformFloatsVertex = uniformFloats;
 		uniformVectorsVertex = uniformVectors;
-		glShaderConfig.VERTEX_INJECTION = ((uTimeUniformEnabled && !buffer.hasTime()) ? "uniform float uTime;" : "") + generateUniformFloatsGLSL(uniformFloats) + generateUniformVectorsGLSL(uniformVectors) + glslCode;
+		
+		// Create UBO if using ES3
+		if (PeoteGL.Version.isUBO && (uniformFloats != null || uniformVectors != null)) {
+			hasCustomUBO = true;
+			uniformBufferCustom = new UniformBufferCustom(
+				uniformFloats != null ? uniformFloats : [],
+				uniformVectors != null ? uniformVectors : []
+			);
+			
+			if (gl != null) {
+				uniformBufferCustom.createGLBuffer(gl);
+			}
+			
+			// Generate UBO declaration with CORRECT TYPES
+			var uboDecl = "layout(std140) uniform uboCustom {\n";
+			
+			// Add floats (remain as float)
+			if (uniformFloats != null) {
+				for (u in uniformFloats) {
+					uboDecl += "    float " + u.name + ";\n";
+				}
+			}
+			
+			// Add vectors with their ORIGINAL types
+			// In std140, vec2 and vec3 still take the space of vec4, but we declare them as their actual type
+			if (uniformVectors != null) {
+				for (u in uniformVectors) {
+					var type = "vec4"; // default
+					if (u.value != null) {
+						switch(u.value.length) {
+							case 2: type = "vec2";
+							case 3: type = "vec3";
+							case 4: type = "vec4";
+						}
+					}
+					uboDecl += "    " + type + " " + u.name + ";\n";
+				}
+			}
+			
+			uboDecl += "};\n";
+			
+			// NO MACROS NEEDED - use the uniforms directly with their correct types
+			
+			glShaderConfig.VERTEX_INJECTION = ((uTimeUniformEnabled && !buffer.hasTime()) ? "uniform float uTime;\n" : "") 
+				+ uboDecl + "\n" + glslCode;
+		} else {
+			glShaderConfig.VERTEX_INJECTION = ((uTimeUniformEnabled && !buffer.hasTime()) ? "uniform float uTime;\n" : "") 
+				+ generateUniformFloatsGLSL(uniformFloats) 
+				+ generateUniformVectorsGLSL(uniformVectors) + "\n" + glslCode;
+		}
+		
 		accumulateUniformsFloat();
 		accumulateUniformsVector();
 		checkAutoUpdate(autoUpdate);
@@ -721,14 +797,106 @@ class Program
 		@param uniformFloats an Array of custom `UniformFloat`s
 		@param autoUpdate set it to `true` (update) or `false` (no update), otherwise the `.autoUpdate` property is used
 	**/
-	public function injectIntoFragmentShader(glslCode:String = "", uTimeUniformEnabled = false, uniformFloats:Array<UniformFloat> = null, ?autoUpdate:Null<Bool>, uniformVectors:Array<UniformVector> = null):Void {
+	public function injectIntoFragmentShader(glslCode:String = "", uTimeUniformEnabled = false, 
+		uniformFloats:Array<UniformFloat> = null, ?autoUpdate:Null<Bool>, 
+		uniformVectors:Array<UniformVector> = null):Void 
+	{
 		glShaderConfig.hasFRAGMENT_INJECTION = (glslCode == "") ? false : true;
 		uniformFloatsFragment = uniformFloats;
 		uniformVectorsFragment = uniformVectors;
-		glShaderConfig.FRAGMENT_INJECTION = ((uTimeUniformEnabled) ? "uniform float uTime;" : "") + generateUniformFloatsGLSL(uniformFloats) + generateUniformVectorsGLSL(uniformVectors) + glslCode;
+		
+		// Create UBO if using ES3
+		if (PeoteGL.Version.isUBO && (uniformFloats != null || uniformVectors != null)) {
+			hasCustomUBO = true;
+			uniformBufferCustom = new UniformBufferCustom(
+				uniformFloats != null ? uniformFloats : [],
+				uniformVectors != null ? uniformVectors : []
+			);
+			
+			// Don't create GL buffer yet if gl is null - it will be created in setNewGLContext
+			if (gl != null) {
+				uniformBufferCustom.createGLBuffer(gl);
+			} else {
+				#if peoteview_debug_program
+				trace("Custom UBO prepared for fragment shader, will create buffer when GL context available");
+				#end
+			}
+			
+			// Generate UBO declaration
+			var uboDecl = "layout(std140) uniform uboCustom {\n";
+			
+			// Add floats
+			if (uniformFloats != null) {
+				for (u in uniformFloats) {
+					uboDecl += "    float " + u.name + ";\n";
+				}
+			}
+			
+			// Add vectors - all as vec4 in UBO
+			if (uniformVectors != null) {
+				for (u in uniformVectors) {
+					uboDecl += "    vec4 " + u.name + ";\n";
+				}
+			}
+			
+			uboDecl += "};\n";
+			
+			// IMPORTANT: Add macros to make vec4 uniforms work as expected
+			// This creates macros that map the uniform name to the appropriate components
+			var macros = "";
+			if (uniformVectors != null) {
+				for (u in uniformVectors) {
+					var originalType = "vec4"; // default
+					if (u.value != null) {
+						switch(u.value.length) {
+							case 2: originalType = "vec2";
+							case 3: originalType = "vec3";
+						}
+					}
+					
+					// Create macro based on original type
+					switch(originalType) {
+						case "vec2":
+							macros += "#define " + u.name + " " + u.name + ".xy\n";
+						case "vec3":
+							macros += "#define " + u.name + " " + u.name + ".xyz\n";
+						default:
+							macros += "#define " + u.name + " " + u.name + "\n";
+					}
+				}
+			}
+			
+			// Combine UBO declaration, macros, and user code
+			// Add uTime if needed (but not if buffer already has time)
+			var timeUniform = "";
+			if (uTimeUniformEnabled && !buffer.hasTime()) {
+				timeUniform = "uniform float uTime;\n";
+			}
+			
+			glShaderConfig.FRAGMENT_INJECTION = timeUniform + uboDecl + "\n" + macros + "\n" + glslCode;
+			
+		} else {
+			// Traditional uniforms for non-UBO case
+			var timeUniform = "";
+			if (uTimeUniformEnabled && !buffer.hasTime()) {
+				timeUniform = "uniform float uTime;";
+			}
+			
+			glShaderConfig.FRAGMENT_INJECTION = timeUniform 
+				+ generateUniformFloatsGLSL(uniformFloats) 
+				+ generateUniformVectorsGLSL(uniformVectors) + "\n" + glslCode;
+		}
+		
 		accumulateUniformsFloat();
 		accumulateUniformsVector();
 		checkAutoUpdate(autoUpdate);
+	}
+
+	private function generateUniformFloatsGLSL(uniformFloats:Array<UniformFloat>):String {
+		var out:String = "";
+		if (uniformFloats != null)
+			for (u in uniformFloats) out += "uniform float " + u.name + ";";
+		return out;
 	}
 
 	private function generateUniformVectorsGLSL(uniformVectors:Array<UniformVector>):String {
@@ -750,10 +918,21 @@ class Program
 		return out;
 	}
 
-	private function generateUniformFloatsGLSL(uniformFloats:Array<UniformFloat>):String {
+	private function generateUniformFloatsGLSL_UBO(uniformFloats:Array<UniformFloat>):String {
 		var out:String = "";
 		if (uniformFloats != null)
-			for (u in uniformFloats) out += "uniform float " + u.name + ";";
+			for (u in uniformFloats) out += "    float " + u.name + ";\n";
+		return out;
+	}
+
+	private function generateUniformVectorsGLSL_UBO(uniformVectors:Array<UniformVector>):String {
+		var out:String = "";
+		if (uniformVectors != null) {
+			for (u in uniformVectors) {
+				var type:String = "vec4"; // All vectors become vec4 in UBO for alignment
+				out += "    " + type + " " + u.name + ";\n";
+			}
+		}
 		return out;
 	}
 
@@ -1485,6 +1664,7 @@ class Program
 				//gl.bindBufferRange(gl.UNIFORM_BUFFER, display.uniformBuffer.block  , display.uniformBuffer.uniformBuffer  , 256, 2 * 4*4);
 				gl.bindBufferBase(gl.UNIFORM_BUFFER, UniformBufferView.block, peoteView.uniformBuffer.uniformBuffer);
 				gl.bindBufferBase(gl.UNIFORM_BUFFER, UniformBufferDisplay.block, display.uniformBuffer.uniformBuffer);
+				if (hasCustomUBO) gl.bindBufferBase(gl.UNIFORM_BUFFER, UniformBufferCustom.block, uniformBufferCustom.uniformBuffer);
 			}
 			else
 			{
@@ -1496,7 +1676,7 @@ class Program
 			}
 			
 			gl.uniform1f (uTIME, peoteView.time);
-			render_activeUniformFloatsAndVectors();
+			if (!hasCustomUBO) render_activeUniformFloatsAndVectors();
 			
 			peoteView.setColor(colorEnabled);
 			peoteView.setGLDepth(zIndexEnabled);			
@@ -1523,6 +1703,7 @@ class Program
 			// ------------- uniform block -------------
 			gl.bindBufferBase(gl.UNIFORM_BUFFER, UniformBufferView.block, display.uniformBufferViewFB.uniformBuffer);
 			gl.bindBufferBase(gl.UNIFORM_BUFFER, UniformBufferDisplay.block, display.uniformBufferFB.uniformBuffer);
+			if (hasCustomUBO) gl.bindBufferBase(gl.UNIFORM_BUFFER, UniformBufferCustom.block, uniformBufferCustom.uniformBuffer);
 		}
 		else
 		{
@@ -1536,7 +1717,7 @@ class Program
 		}
 		
 		gl.uniform1f (uTIME, peoteView.time);
-		render_activeUniformFloatsAndVectors();
+		if (!hasCustomUBO) render_activeUniformFloatsAndVectors();
 		
 		peoteView.setColor(colorEnabled);
 		peoteView.setGLDepth(zIndexEnabled);		
@@ -1565,7 +1746,8 @@ class Program
 		                            (display.y + display.yOffset + yOff) / display.yz);
 		
 		gl.uniform1f (uTIME_PICK, peoteView.time);
-		render_activeUniformFloatsAndVectors(true);
+
+		if (!hasCustomUBO) render_activeUniformFloatsAndVectors(true);
 		
 		peoteView.setGLDepth((toElement == -1) ? zIndexEnabled : false); // disable for getAllElementsAt() in peoteView
 		
@@ -1606,6 +1788,34 @@ class Program
 				}
 			}
 		}
+	}
+
+	public function updateUniformFloat(uniform:UniformFloat, value:Float):Void {
+		var uniformFloats_temp = uniformFloats.toArray();
+		if (uniformFloats_temp != null) {
+			var index = uniformFloats_temp.indexOf(uniform);
+			if (index >= 0) {
+				@:privateAccess uniform._value = value;
+				if (hasCustomUBO && gl != null) {
+					uniformBufferCustom.updateFloat(gl, index, value);
+				}
+			}
+		}
+		uniformFloats = Vector.fromArrayCopy(uniformFloats_temp);
+	}
+
+	public function updateUniformVector(uniform:UniformVector, value:Array<Float>):Void {
+		var uniformVectors_temp = uniformVectors.toArray();
+		if (uniformVectors_temp != null) {
+			var index = uniformVectors_temp.indexOf(uniform);
+			if (index >= 0) {
+				@:privateAccess uniform._value = value;
+				if (hasCustomUBO && gl != null) {
+					uniformBufferCustom.updateVector(gl, index, value);
+				}
+			}
+		}
+		uniformVectors = Vector.fromArrayCopy(uniformVectors_temp);
 	}
 
 }
