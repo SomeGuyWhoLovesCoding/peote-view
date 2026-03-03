@@ -21,7 +21,7 @@ typedef GLRenderbuffer      = lime.graphics.opengl.GLRenderbuffer;
 //typedef Image = lime.graphics.Image;
 
 
-#if html5
+/*#if html5
 	#if peoteview_es3
 		typedef LimeGLRenderContext = lime.graphics.WebGL2RenderContext;
 	#elseif peoteview_es2
@@ -37,9 +37,9 @@ typedef GLRenderbuffer      = lime.graphics.opengl.GLRenderbuffer;
 	#else
 		typedef LimeGLRenderContext = lime.graphics.OpenGLRenderContext;
 	#end
-#end
+#end*/
 
-//typedef LimeGLRenderContext = lime.graphics.OpenGLRenderContext;
+typedef LimeGLRenderContext = lime.graphics.OpenGLRenderContext;
 
 @:forward()
 abstract PeoteGL(LimeGLRenderContext) from LimeGLRenderContext to LimeGLRenderContext {
