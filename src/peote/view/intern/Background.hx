@@ -18,6 +18,12 @@ class Background
 	static inline var aPOSITION:Int = 0;
 	var uRGBA:GLUniformLocation;
 
+	// Cached color values — uniform is only re-uploaded when these change
+	var _ogR:Float = -1.0;
+	var _ogG:Float = -1.0;
+	var _ogB:Float = -1.0;
+	var _ogA:Float = -1.0;
+
 	public function new(gl:PeoteGL) {
 		this.gl = gl;
 		createBuffer();
@@ -33,10 +39,10 @@ class Background
 		bytes.setFloat(16, 1);bytes.setFloat(20, 0);
 		bytes.setFloat(24, 0);bytes.setFloat(28, 0);
 		
-		buffer = gl.createBuffer ();
-		gl.bindBuffer (gl.ARRAY_BUFFER, buffer);
-		gl.bufferData (gl.ARRAY_BUFFER, 8*4, new GLBufferPointer(bytes), gl.STATIC_DRAW);
-		gl.bindBuffer (gl.ARRAY_BUFFER, null);
+		buffer = gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+		gl.bufferData(gl.ARRAY_BUFFER, 8*4, new GLBufferPointer(bytes), gl.STATIC_DRAW);
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
 	}
 	
 	public function createProgram():Void
@@ -88,24 +94,31 @@ class Background
 		gl.bindAttribLocation(glProgram, aPOSITION, "aPosition");
 
 		GLTool.linkGLProgram(gl, glProgram);
-		
-		uRGBA = gl.getUniformLocation (glProgram, "uRGBA");		
+
+		// Bind buffer and set up the attrib pointer once — the static quad never changes
+		gl.useProgram(glProgram);
+		gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+		gl.enableVertexAttribArray(aPOSITION);
+		gl.vertexAttribPointer(aPOSITION, 2, gl.FLOAT, false, 8, 0);
+		gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+		uRGBA = gl.getUniformLocation(glProgram, "uRGBA");
 	}
 	
 	public function render(r:Float, g:Float, b:Float, a:Float):Void
 	{
-		gl.bindBuffer (gl.ARRAY_BUFFER, buffer);
-		
-		gl.enableVertexAttribArray (aPOSITION);
-		gl.vertexAttribPointer (aPOSITION, 2, gl.FLOAT, false, 8, 0);
-		
-		gl.useProgram (glProgram);
-		gl.uniform4f ( uRGBA, r,g,b,a);
-		
-		gl.drawArrays (gl.TRIANGLE_STRIP, 0, 4);
-		gl.disableVertexAttribArray (aPOSITION);
-		
-		gl.bindBuffer (gl.ARRAY_BUFFER, null);
+		gl.useProgram(glProgram);
+
+		// Only re-upload the uniform when the color has actually changed
+		if (r != _ogR || g != _ogG || b != _ogB || a != _ogA) {
+			gl.uniform4f(uRGBA, r, g, b, a);
+			_ogR = r;
+			_ogG = g;
+			_ogB = b;
+			_ogA = a;
+		}
+
+		gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 	}
 	
 	

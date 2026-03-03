@@ -40,7 +40,7 @@ class Display
 	**/
 	public var x(default, set):Int;
 	inline function set_x(_x:Int):Int {
-		if (PeoteGL.Version.isUBO && gl != null) uniformBuffer.updateXOffset(gl, _x + xOffset);
+		if (PeoteGL.Version.isUBO && gl != null) uniformBuffer.updateXOffset(_x + xOffset);
 		return x = _x;
 	}
 
@@ -49,7 +49,7 @@ class Display
 	**/
 	public var y(default, set):Int;
 	inline function set_y(_y:Int):Int {
-		if (PeoteGL.Version.isUBO && gl != null) uniformBuffer.updateYOffset(gl, _y + yOffset);
+		if (PeoteGL.Version.isUBO && gl != null) uniformBuffer.updateYOffset(_y + yOffset);
 		return y = _y;
 	}
 
@@ -122,8 +122,8 @@ class Display
 	public var xOffset(default, set):Float = 0;
 	inline function set_xOffset(xo:Float):Float {
 		if (PeoteGL.Version.isUBO && gl != null) {
-			uniformBuffer.updateXOffset(gl, x + xo);
-			uniformBufferFB.updateXOffset(gl, xo);
+			uniformBuffer.updateXOffset(x + xo);
+			uniformBufferFB.updateXOffset(xo);
 		}
 		return xOffset = xo;
 	}
@@ -134,8 +134,8 @@ class Display
 	public var yOffset(default, set):Float = 0;
 	inline function set_yOffset(yo:Float):Float {
 		if (PeoteGL.Version.isUBO && gl != null) {
-			uniformBuffer.updateYOffset(gl, y + yo);
-			uniformBufferFB.updateYOffset(gl, yo - height);
+			uniformBuffer.updateYOffset(y + yo);
+			uniformBufferFB.updateYOffset(yo - height);
 		}
 		return yOffset = yo;
 	}
@@ -158,8 +158,8 @@ class Display
 		xz = xZoom * z;
 		yz = yZoom * z;
 		if (PeoteGL.Version.isUBO && gl != null) {
-			uniformBuffer.updateZoom(gl, xz, yz);
-			uniformBufferFB.updateZoom(gl, xz, yz);
+			uniformBuffer.updateZoom(xz, yz);
+			uniformBufferFB.updateZoom(xz, yz);
 		}
 		return zoom = z;
 	}
@@ -171,8 +171,8 @@ class Display
 	inline function set_xZoom(z:Float):Float {
 		xz = zoom * z;
 		if (PeoteGL.Version.isUBO && gl != null) {
-			uniformBuffer.updateXZoom(gl, xz);
-			uniformBufferFB.updateXZoom(gl, xz);
+			uniformBuffer.updateXZoom(xz);
+			uniformBufferFB.updateXZoom(xz);
 		}
 		return xZoom = z;
 	}
@@ -184,8 +184,8 @@ class Display
 	inline function set_yZoom(z:Float):Float {
 		yz = zoom * z;
 		if (PeoteGL.Version.isUBO && gl != null) {
-			uniformBuffer.updateYZoom(gl, yz);
-			uniformBufferFB.updateYZoom(gl, yz);
+			uniformBuffer.updateYZoom(yz);
+			uniformBufferFB.updateYZoom(yz);
 		}
 		return yZoom = z;
 	}
@@ -542,11 +542,37 @@ class Display
 	
 	var programListItem:RenderListItem<Program>;
 	
+	var _ogX:Int = -1;
+	var _ogY:Int = -1;
+	var _ogOX:Float = -1;
+	var _ogOY:Float = -1;
+	var _ogXZ:Float = -1;
+	var _ogYZ:Float = -1;
+	var _ogZoom:Float = -1;
+	var _ogXz:Float = -1;
+	var _ogYz:Float = -1;
 	private inline function render(peoteView:PeoteView):Void
 	{
 		if (isVisible)
 		{
 			//trace("  ---display.render---");
+			if (PeoteGL.Version.isUBO && peoteView.gl != null) {
+				//trace(_ogX, _ogY, _ogOX, _ogOY, _ogXZ, _ogYZ, _ogZoom, _ogXz, _ogYz);
+				if (_ogX != x || _ogY != y || _ogOX != xOffset || _ogOY != yOffset || _ogXZ != xZoom || _ogYZ != yZoom || _ogZoom != zoom || _ogXz != xz || _ogYz != yz) {
+					uniformBuffer.update(peoteView.gl);
+					uniformBufferFB.update(peoteView.gl);
+					_ogX = x;
+					_ogY = y;
+					_ogOX = xOffset;
+					_ogOY = yOffset;
+					_ogXZ = xZoom;
+					_ogYZ = yZoom;
+					_ogZoom = zoom;
+					_ogXz = xz;
+					_ogYz = yz;
+				}
+			}
+
 			glScissor(peoteView.gl, peoteView.width, peoteView.height, peoteView.xOffset, peoteView.yOffset, peoteView.xz, peoteView.yz);
 			
 			if (backgroundEnabled) {
