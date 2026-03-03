@@ -620,6 +620,7 @@ class PeoteView
 		
 		display.renderFramebuffer(this); // <-- render display
 
+		if (PeoteGL.Version.isES3) gl.disable(0x8DB9); // GL_FRAMEBUFFER_SRGB_EXT
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		//gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
 		
