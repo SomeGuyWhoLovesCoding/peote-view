@@ -75,6 +75,9 @@ abstract PeoteGL(LimeGLRenderContext) from LimeGLRenderContext to LimeGLRenderCo
 		public inline function readPixels_Float32(x:Int, y:Int, w:Int, h:Int, format:Int, type:Int, data:Float32Array):Void {
 			this.readPixels(x, y, w, h, format, type, data);
 		}
+		public inline function getActiveUniformBlock(glProg:GLProgram, uniformBlockIndex:Int, pname:Int, params:UInt8Array):Void {
+			this.getActiveUniformBlockParameter(glProg, uniformBlockIndex, pname, params);
+		}
 		
 	#else
 		public inline function texSubImage2D(target:Int, level:Int, x:Int, y:Int, width:Int, height:Int, format:Int, type:Int, data:UInt8Array):Void {
@@ -92,6 +95,9 @@ abstract PeoteGL(LimeGLRenderContext) from LimeGLRenderContext to LimeGLRenderCo
 		}
 		public inline function readPixels_Float32(x:Int, y:Int, w:Int, h:Int, format:Int, type:Int, data:Float32Array):Void {
 			this.readPixels(x, y, w, h, format, type, data.view.buffer);
+		}
+		public inline function getActiveUniformBlock(glProg:GLProgram, uniformBlockIndex:Int, pname:Int, params:UInt8Array):Void {
+			this.getActiveUniformBlockiv(glProg, uniformBlockIndex, pname, params);
 		}
 		
 	/*
