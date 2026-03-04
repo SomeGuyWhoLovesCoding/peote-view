@@ -274,7 +274,11 @@ class Precision {
 		if (t.high > 0 && p == "highp") return "highp";
 		else if (t.medium > 0 && (p == "highp" || p == "mediump")) return "mediump";
 		else if (t.low > 0) return "lowp";
+		#if html5
 		else return null;
+		#else
+		else return "mediump";
+		#end
 	}
 	static public inline function availVertexFloat(precision:Null<String>):Null<String> return highest(VertexFloat, precision);
 	static public inline function availVertexInt(precision:Null<String>):Null<String> return highest(VertexInt, precision);
