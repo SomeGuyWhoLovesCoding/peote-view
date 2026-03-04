@@ -107,17 +107,31 @@ class UniformBufferCustom
     }
 
     public inline function getFloat(index:Int):Float {
+        #if (!html5)
         return uniformBytes.getFloat(floatOffsets[index]);
+        #else
+        return (new js.lib.Float32Array(uniformBytes.getData()))[floatOffsets[index] >> 2];
+        #end
     }
 
     public inline function getVector(index:Int):Array<Float> {
         var offset = vectorOffsets[index];
+        #if (!html5)
         return [
             uniformBytes.getFloat(offset),
             uniformBytes.getFloat(offset + 4),
             uniformBytes.getFloat(offset + 8),
             uniformBytes.getFloat(offset + 12)
         ];
+        #else
+        var f32 = new js.lib.Float32Array(uniformBytes.getData());
+        return [
+            f32[offset      >> 2],
+            f32[(offset + 4) >> 2],
+            f32[(offset + 8) >> 2],
+            f32[(offset + 12) >> 2]
+        ];
+        #end
     }
 
     // ES 3.1 introspection constants — defined locally because Lime's native
@@ -137,8 +151,8 @@ class UniformBufferCustom
         if (blockIndex == gl.INVALID_INDEX) return;
 
         // Authoritative total size from the linker
-        var result = new lime.utils.UInt8Array(4);
-        gl.getActiveUniformBlockiv(glProg, blockIndex, GL_UNIFORM_BLOCK_DATA_SIZE, result);
+        var result = new haxe.io.UInt8Array(4);
+        gl.getActiveUniformBlock(glProg, blockIndex, GL_UNIFORM_BLOCK_DATA_SIZE, result);
         var blockSize:Int = result[0] | (result[1] << 8) | (result[2] << 16) | (result[3] << 24);
 
         //trace(untyped result.view.bytes.toString());
@@ -151,7 +165,7 @@ class UniformBufferCustom
         }
 
         // Collect indices of all uniforms that belong to this block
-        gl.getActiveUniformBlockiv(glProg, blockIndex, GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS, result);
+        gl.getActiveUniformBlock(glProg, blockIndex, GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS, result);
         var numBlockUniforms:Int = result[0];
         if (numBlockUniforms <= 0) {
             #if peoteview_debug_program
