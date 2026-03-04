@@ -402,7 +402,7 @@ class Program
 			buffer.setNewGLContext(gl);
         
 			// RECREATE CUSTOM UBO IF NEEDED
-			// On ES3.1, applyIntrospectedOffsets() in createProg() creates and uploads
+			// On ES3.1, applyIntrospectedLayout() in createProg() creates and uploads
 			// the GL buffer with the correct introspected size and layout.
 			// On ES3.0 we create it now with the constructor-computed layout.
 			if (hasCustomUBO && uniformBufferCustom != null && !PeoteGL.Version.isINTROSPECTED) {
@@ -535,7 +535,7 @@ class Program
 			if (index != gl.INVALID_INDEX) gl.uniformBlockBinding(glProg, index, UniformBufferCustom.block);
 
 			if (hasCustomUBO && PeoteGL.Version.isINTROSPECTED)
-				uniformBufferCustom.applyIntrospectedOffsets(gl, glProg);
+				uniformBufferCustom.applyIntrospectedLayout(gl, glProg);
 		}
 		else
 		{	// Try to optimize here to let use picking shader the same vars
@@ -828,7 +828,7 @@ class Program
 			}
 			
 			// Generate UBO declaration with real types.
-			// On ES3.1 applyIntrospectedOffsets() will correct offsets after link;
+			// On ES3.1 applyIntrospectedLayout() will correct offsets after link;
 			// on ES3.0 the constructor-computed std140 layout is used as-is.
 			var uboDecl = "layout(std140) uniform uboCustom {\n";
 			if (uniformFloats_ != null)

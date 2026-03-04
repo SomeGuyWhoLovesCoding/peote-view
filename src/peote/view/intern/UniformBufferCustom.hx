@@ -131,7 +131,7 @@ class UniformBufferCustom
     // member in the "uboCustom" block and replaces the constructor-computed
     // floatOffsets/vectorOffsets with the authoritative values.
     // Must be called after GLTool.linkGLProgram and only when Version.isES31.
-    public function applyIntrospectedOffsets(gl:PeoteGL, glProg:peote.view.PeoteGL.GLProgram):Void
+    public function applyIntrospectedLayout(gl:PeoteGL, glProg:peote.view.PeoteGL.GLProgram):Void
     {
         var blockIndex = gl.getUniformBlockIndex(glProg, "uboCustom");
         if (blockIndex == gl.INVALID_INDEX) return;
@@ -145,7 +145,7 @@ class UniformBufferCustom
         //var blockSize:Int = result[0];
         if (blockSize <= 0) {
             #if peoteview_debug_program
-            trace("applyIntrospectedOffsets: UNIFORM_BLOCK_DATA_SIZE returned " + blockSize + ", keeping constructor layout");
+            trace("applyIntrospectedLayout: UNIFORM_BLOCK_DATA_SIZE returned " + blockSize + ", keeping constructor layout");
             #end
             return;
         }
@@ -155,13 +155,13 @@ class UniformBufferCustom
         var numBlockUniforms:Int = result[0];
         if (numBlockUniforms <= 0) {
             #if peoteview_debug_program
-            trace("applyIntrospectedOffsets: UNIFORM_BLOCK_ACTIVE_UNIFORMS returned " + numBlockUniforms + ", keeping constructor layout");
+            trace("applyIntrospectedLayout: UNIFORM_BLOCK_ACTIVE_UNIFORMS returned " + numBlockUniforms + ", keeping constructor layout");
             #end
             return;
         }
 
         #if peoteview_debug_program
-        trace("applyIntrospectedOffsets: blockSize=" + blockSize + " numUniforms=" + numBlockUniforms);
+        trace("applyIntrospectedLayout: blockSize=" + blockSize + " numUniforms=" + numBlockUniforms);
         #end
 
         var blockUniformIndices = new haxe.io.Int32Array(numBlockUniforms);
@@ -176,7 +176,7 @@ class UniformBufferCustom
             var offsets = new haxe.io.Int32Array(1);
             gl.getActiveUniformsiv(glProg, [idx], GL_UNIFORM_OFFSET, offsets);
             #if peoteview_debug_program
-            trace("applyIntrospectedOffsets: member=" + info.name + " offset=" + offsets[0]);
+            trace("applyIntrospectedLayout: member=" + info.name + " offset=" + offsets[0]);
             #end
             memberOffsets.set(info.name, offsets[0]);
         }
