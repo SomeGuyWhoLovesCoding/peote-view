@@ -164,25 +164,21 @@ class UniformBufferCustom
         trace("applyIntrospectedOffsets: blockSize=" + blockSize + " numUniforms=" + numBlockUniforms);
         #end
 
-        var blockUniformIndices = new lime.utils.UInt8Array(numBlockUniforms * 4);
+        var blockUniformIndices = new haxe.io.Int32Array(numBlockUniforms);
         gl.getActiveUniformBlockiv(glProg, blockIndex, GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES, blockUniformIndices);
 
         // For each member, query its name and byte offset
         var memberOffsets = new haxe.ds.StringMap<Int>();
-        var offsets = new lime.utils.UInt8Array(4);
         for (i in 0...numBlockUniforms) {
-            var idx:Int = blockUniformIndices[i*4    ]
-                        | blockUniformIndices[i*4 + 1] << 8
-                        | blockUniformIndices[i*4 + 2] << 16
-                        | blockUniformIndices[i*4 + 3] << 24;
+            var idx = blockUniformIndices[i];
             var info = gl.getActiveUniform(glProg, idx);
             if (info == null) continue;
+            var offsets = new haxe.io.Int32Array(1);
             gl.getActiveUniformsiv(glProg, [idx], GL_UNIFORM_OFFSET, offsets);
-            var offset:Int = offsets[0] | (offsets[1] << 8) | (offsets[2] << 16) | (offsets[3] << 24);
             #if peoteview_debug_program
-            trace("applyIntrospectedOffsets: member=" + info.name + " offset=" + offset);
+            trace("applyIntrospectedOffsets: member=" + info.name + " offset=" + offsets[0]);
             #end
-            memberOffsets.set(info.name, offset);
+            memberOffsets.set(info.name, offsets[0]);
         }
 
         // Remap floatOffsets by name
@@ -197,10 +193,15 @@ class UniformBufferCustom
             if (queried != null) vectorOffsets[i] = queried;
         }
 
-        // Reallocate uniformBytes to the GPU-reported block size and re-seed
+        // Reallocate uniformBytes to the GPU-reported block size, re-seed,
+        // then create the GL buffer (skipped in setNewGLContext on ES3.1)
+        // and upload the correctly-laid-out data immediately.
         uniformBytes = BufferBytes.alloc(blockSize);
         bufferPointer = new GLBufferPointer(uniformBytes, 0);
         seedBytes();
+        uniformBuffer = gl.createBuffer();
+        update(gl);
+        isDirty = false;
     }
 
     public function createGLBuffer(gl:PeoteGL)
