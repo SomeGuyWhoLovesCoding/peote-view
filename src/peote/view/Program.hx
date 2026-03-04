@@ -405,7 +405,7 @@ class Program
 			// On ES3.1, applyIntrospectedOffsets() in createProg() creates and uploads
 			// the GL buffer with the correct introspected size and layout.
 			// On ES3.0 we create it now with the constructor-computed layout.
-			if (hasCustomUBO && uniformBufferCustom != null && !PeoteGL.Version.isINTROSPECTED) {
+			if (hasCustomUBO && uniformBufferCustom != null) {
 				uniformBufferCustom.createGLBuffer(gl);
 			}
 
@@ -534,7 +534,7 @@ class Program
 			index = gl.getUniformBlockIndex(glProg, "uboCustom");
 			if (index != gl.INVALID_INDEX) gl.uniformBlockBinding(glProg, index, UniformBufferCustom.block);
 
-			if (hasCustomUBO && PeoteGL.Version.isINTROSPECTED)
+			if (hasCustomUBO)
 				uniformBufferCustom.applyIntrospectedOffsets(gl, glProg);
 		}
 		else
