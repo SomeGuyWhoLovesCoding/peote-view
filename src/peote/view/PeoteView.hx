@@ -325,9 +325,7 @@ class PeoteView
 		);
 		#end
 
-		#if (!html5)
 		if (PeoteGL.Version.isES3) gl.disable(0x8DB9); // GL_FRAMEBUFFER_SRGB_EXT
-		#end
 	}
 
 	/**
