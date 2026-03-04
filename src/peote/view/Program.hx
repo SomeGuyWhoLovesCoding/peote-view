@@ -402,8 +402,10 @@ class Program
 			buffer.setNewGLContext(gl);
         
 			// RECREATE CUSTOM UBO IF NEEDED
-			if (hasCustomUBO && uniformBufferCustom != null) {
-				//trace("Creating custom UBO buffer now that GL context is available");
+			// On ES3.1, applyIntrospectedLayout() in createProg() creates and uploads
+			// the GL buffer with the correct introspected size and layout.
+			// On ES3.0 we create it now with the constructor-computed layout.
+			if (hasCustomUBO && uniformBufferCustom != null && !PeoteGL.Version.isINTROSPECTED) {
 				uniformBufferCustom.createGLBuffer(gl);
 			}
 
@@ -531,9 +533,9 @@ class Program
 			if (index != gl.INVALID_INDEX) gl.uniformBlockBinding(glProg, index, UniformBufferDisplay.block);
 			index = gl.getUniformBlockIndex(glProg, "uboCustom");
 			if (index != gl.INVALID_INDEX) gl.uniformBlockBinding(glProg, index, UniformBufferCustom.block);
-			
-			//trace('Custom UBO block index: ' + gl.getUniformBlockIndex(glProg, "uboCustom"));
-			//trace('Uniform buffer created: ' + (uniformBufferCustom.uniformBuffer != null));
+
+			if (hasCustomUBO && PeoteGL.Version.isINTROSPECTED)
+				uniformBufferCustom.applyIntrospectedLayout(gl, glProg);
 		}
 		else
 		{	// Try to optimize here to let use picking shader the same vars
@@ -825,68 +827,33 @@ class Program
 				#end
 			}
 			
-			// Generate UBO declaration
+			// Generate UBO declaration with real types.
+			// On ES3.1 applyIntrospectedLayout() will correct offsets after link;
+			// on ES3.0 the constructor-computed std140 layout is used as-is.
 			var uboDecl = "layout(std140) uniform uboCustom {\n";
-			
-			// Add floats
-			if (uniformFloats_ != null) {
-				for (u in uniformFloats_) {
+			if (uniformFloats_ != null)
+				for (u in uniformFloats_)
 					uboDecl += "    float " + u.name + ";\n";
-				}
-			}
-			
-			// Add vectors - all as vec4 in UBO
 			if (uniformVectors_ != null) {
 				for (u in uniformVectors_) {
-					uboDecl += "    vec4 " + u.name + ";\n";
+					var type = "vec4";
+					if (u.value != null) switch (u.value.length) {
+						case 2: type = "vec2";
+						case 3: type = "vec3";
+					}
+					uboDecl += "    " + type + " " + u.name + ";\n";
 				}
 			}
-			
 			uboDecl += "};\n";
-			
-			// IMPORTANT: Add macros to make vec4 uniforms work as expected
-			// This creates macros that map the uniform name to the appropriate components
-			var macros = "";
-			if (uniformVectors_ != null) {
-				for (u in uniformVectors_) {
-					var originalType = "vec4"; // default
-					if (u.value != null) {
-						switch(u.value.length) {
-							case 2: originalType = "vec2";
-							case 3: originalType = "vec3";
-						}
-					}
-					
-					// Create macro based on original type
-					switch(originalType) {
-						case "vec2":
-							macros += "#define " + u.name + " " + u.name + ".xy\n";
-						case "vec3":
-							macros += "#define " + u.name + " " + u.name + ".xyz\n";
-						default:
-							macros += "#define " + u.name + " " + u.name + "\n";
-					}
-				}
-			}
-			
-			// Combine UBO declaration, macros, and user code
-			// Add uTime if needed (but not if buffer already has time)
-			var timeUniform = "";
-			if (uTimeUniformEnabled && !buffer.hasTime()) {
-				timeUniform = "uniform float uTime;\n";
-			}
-			
-			glShaderConfig.FRAGMENT_INJECTION = timeUniform + uboDecl + "\n" + macros + "\n" + glslCode;
-			
+
+			var timeUniform = (uTimeUniformEnabled && !buffer.hasTime()) ? "uniform float uTime;\n" : "";
+			glShaderConfig.FRAGMENT_INJECTION = timeUniform + uboDecl + "\n" + glslCode;
+
 		} else {
 			// Traditional uniforms for non-UBO case
-			var timeUniform = "";
-			if (uTimeUniformEnabled && !buffer.hasTime()) {
-				timeUniform = "uniform float uTime;";
-			}
-			
-			glShaderConfig.FRAGMENT_INJECTION = timeUniform 
-				+ generateUniformFloatsGLSL(uniformFloats_) 
+			var timeUniform = (uTimeUniformEnabled && !buffer.hasTime()) ? "uniform float uTime;" : "";
+			glShaderConfig.FRAGMENT_INJECTION = timeUniform
+				+ generateUniformFloatsGLSL(uniformFloats_)
 				+ generateUniformVectorsGLSL(uniformVectors_) + "\n" + glslCode;
 		}
 		
