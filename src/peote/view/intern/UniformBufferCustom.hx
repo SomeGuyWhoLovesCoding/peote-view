@@ -20,21 +20,6 @@ class UniformBufferCustom
     var floats:Array<UniformFloat>;
     var vectors:Array<UniformVector>;
 
-    // Seeds uniformBytes from the live uniform values.
-    // Called at construction and again in createGLBuffer() to capture
-    // any value changes that happened before the GL context existed.
-    inline function seedBytes() {
-        for (i in 0...floats.length)
-            uniformBytes.setFloat(floatOffsets[i], floats[i].value);
-        for (i in 0...vectors.length) {
-            var v = vectors[i].value;
-            var offset = vectorOffsets[i];
-            var count = (v != null) ? v.length : 0;
-            for (c in 0...count)
-                uniformBytes.setFloat(offset + c * 4, v[c]);
-        }
-    }
-
     public function new(floats:Array<UniformFloat>, vectors:Array<UniformVector>) 
     {
         this.floats = floats;
@@ -72,7 +57,17 @@ class UniformBufferCustom
         uniformBytes = BufferBytes.alloc(totalBufferSize);
         bufferPointer = new GLBufferPointer(uniformBytes, 0);
 
-        seedBytes();
+        // Seed bytes from initial values
+        for (i in 0...floats.length)
+            uniformBytes.setFloat(floatOffsets[i], floats[i].value);
+        for (i in 0...vectors.length) {
+            var v = vectors[i].value;
+            var offset = vectorOffsets[i];
+            uniformBytes.setFloat(offset,      (v != null && v.length >= 1) ? v[0] : 0.0);
+            uniformBytes.setFloat(offset + 4,  (v != null && v.length >= 2) ? v[1] : 0.0);
+            uniformBytes.setFloat(offset + 8,  (v != null && v.length >= 3) ? v[2] : 0.0);
+            uniformBytes.setFloat(offset + 12, (v != null && v.length >= 4) ? v[3] : 0.0);
+        }
     }
 
     public inline function update(gl:PeoteGL) {
@@ -91,9 +86,10 @@ class UniformBufferCustom
     public inline function updateVector(gl:PeoteGL, index:Int, values:Array<Float>) {
         if (gl != null) {
             var offset = vectorOffsets[index];
-            var count = (values != null) ? values.length : 0;
-            for (c in 0...count)
-                uniformBytes.setFloat(offset + c * 4, values[c]);
+            uniformBytes.setFloat(offset,      (values != null && values.length >= 1) ? values[0] : 0.0);
+            uniformBytes.setFloat(offset + 4,  (values != null && values.length >= 2) ? values[1] : 0.0);
+            uniformBytes.setFloat(offset + 8,  (values != null && values.length >= 3) ? values[2] : 0.0);
+            uniformBytes.setFloat(offset + 12, (values != null && values.length >= 4) ? values[3] : 0.0);
             isDirty = true;
         }
     }
@@ -120,95 +116,20 @@ class UniformBufferCustom
         ];
     }
 
-    // ES 3.1 introspection constants — defined locally because Lime's native
-    // binding does not always expose these as accessible Haxe properties.
-    static inline var GL_UNIFORM_BLOCK_DATA_SIZE              = 0x8A40;
-    static inline var GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS        = 0x8A42;
-    static inline var GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES = 0x8A43;
-    static inline var GL_UNIFORM_OFFSET                       = 0x8A3B;
-
-    // Queries the GPU-linked program for the exact std140 byte offsets of every
-    // member in the "uboCustom" block and replaces the constructor-computed
-    // floatOffsets/vectorOffsets with the authoritative values.
-    // Must be called after GLTool.linkGLProgram and only when Version.isES31.
-    public function applyIntrospectedLayout(gl:PeoteGL, glProg:peote.view.PeoteGL.GLProgram):Void
-    {
-        var blockIndex = gl.getUniformBlockIndex(glProg, "uboCustom");
-        if (blockIndex == gl.INVALID_INDEX) return;
-
-        // Authoritative total size from the linker
-        var result = new lime.utils.UInt8Array(4);
-        gl.getActiveUniformBlockiv(glProg, blockIndex, GL_UNIFORM_BLOCK_DATA_SIZE, result);
-        var blockSize:Int = result[0] | (result[1] << 8) | (result[2] << 16) | (result[3] << 24);
-
-        //trace(untyped result.view.bytes.toString());
-        //var blockSize:Int = result[0];
-        if (blockSize <= 0) {
-            #if peoteview_debug_program
-            trace("applyIntrospectedLayout: UNIFORM_BLOCK_DATA_SIZE returned " + blockSize + ", keeping constructor layout");
-            #end
-            return;
-        }
-
-        // Collect indices of all uniforms that belong to this block
-        gl.getActiveUniformBlockiv(glProg, blockIndex, GL_UNIFORM_BLOCK_ACTIVE_UNIFORMS, result);
-        var numBlockUniforms:Int = result[0];
-        if (numBlockUniforms <= 0) {
-            #if peoteview_debug_program
-            trace("applyIntrospectedLayout: UNIFORM_BLOCK_ACTIVE_UNIFORMS returned " + numBlockUniforms + ", keeping constructor layout");
-            #end
-            return;
-        }
-
-        #if peoteview_debug_program
-        trace("applyIntrospectedLayout: blockSize=" + blockSize + " numUniforms=" + numBlockUniforms);
-        #end
-
-        var blockUniformIndices = new haxe.io.Int32Array(numBlockUniforms);
-        gl.getActiveUniformBlockiv(glProg, blockIndex, GL_UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES, blockUniformIndices);
-
-        // For each member, query its name and byte offset
-        var memberOffsets = new haxe.ds.StringMap<Int>();
-        for (i in 0...numBlockUniforms) {
-            var idx = blockUniformIndices[i];
-            var info = gl.getActiveUniform(glProg, idx);
-            if (info == null) continue;
-            var offsets = new haxe.io.Int32Array(1);
-            gl.getActiveUniformsiv(glProg, [idx], GL_UNIFORM_OFFSET, offsets);
-            #if peoteview_debug_program
-            trace("applyIntrospectedLayout: member=" + info.name + " offset=" + offsets[0]);
-            #end
-            memberOffsets.set(info.name, offsets[0]);
-        }
-
-        // Remap floatOffsets by name
-        for (i in 0...floats.length) {
-            var queried = memberOffsets.get(floats[i].name);
-            if (queried != null) floatOffsets[i] = queried;
-        }
-
-        // Remap vectorOffsets by name
-        for (i in 0...vectors.length) {
-            var queried = memberOffsets.get(vectors[i].name);
-            if (queried != null) vectorOffsets[i] = queried;
-        }
-
-        // Reallocate uniformBytes to the GPU-reported block size, re-seed,
-        // then create the GL buffer (skipped in setNewGLContext on ES3.1)
-        // and upload the correctly-laid-out data immediately.
-        uniformBytes = BufferBytes.alloc(blockSize);
-        bufferPointer = new GLBufferPointer(uniformBytes, 0);
-        seedBytes();
-        uniformBuffer = gl.createBuffer();
-        update(gl);
-        isDirty = false;
-    }
-
     public function createGLBuffer(gl:PeoteGL)
     {
         // Re-seed from live uniform values to capture any set_value calls
         // that happened before the GL context existed.
-        seedBytes();
+        for (i in 0...floats.length)
+            uniformBytes.setFloat(floatOffsets[i], floats[i].value);
+        for (i in 0...vectors.length) {
+            var v = vectors[i].value;
+            var offset = vectorOffsets[i];
+            uniformBytes.setFloat(offset,      (v != null && v.length >= 1) ? v[0] : 0.0);
+            uniformBytes.setFloat(offset + 4,  (v != null && v.length >= 2) ? v[1] : 0.0);
+            uniformBytes.setFloat(offset + 8,  (v != null && v.length >= 3) ? v[2] : 0.0);
+            uniformBytes.setFloat(offset + 12, (v != null && v.length >= 4) ? v[3] : 0.0);
+        }
 
         uniformBuffer = gl.createBuffer();
         update(gl);

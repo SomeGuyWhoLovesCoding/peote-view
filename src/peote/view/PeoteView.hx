@@ -302,7 +302,7 @@ class PeoteView
 		// or look here https://stackoverflow.com/questions/45571488/webgl-2-readpixels-on-framebuffers-with-float-textures
 		
 		
-		PeoteGL.Precision.init(gl); // init precision
+		PeoteGL.Precision.init(gl); // init precision		
 		
 		initGlPicking();
 		

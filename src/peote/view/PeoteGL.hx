@@ -187,11 +187,6 @@ class Version {
 		#else 
 			static inline var isINSTANCED = false;
 		#end
-		#if peoteview_introspectedlayout
-			static inline var isINTROSPECTED = true;
-		#else 
-			static inline var isINTROSPECTED = false;
-		#end
 		#if peoteview_vertexarrayobjects
 			static inline var isVAO = true;
 		#else 
@@ -203,7 +198,6 @@ class Version {
 		static inline public var isES3 = false;
 		static inline var isUBO = false;
 		static inline var isINSTANCED = false;
-		static inline var isINTROSPECTED = false;
 		static inline var isVAO = false;
 		
 	#else // check at runtime (depends on available es-version) 
@@ -219,9 +213,6 @@ class Version {
 			#if peoteview_vertexarrayobjects
 				isVAO = b;
 			#end
-			#if peoteview_introspectedlayout
-				isINTROSPECTED = b;
-			#end
 			return isES3 = b;
 		}
 		
@@ -234,11 +225,6 @@ class Version {
 			static var isINSTANCED = false;  // is set at runtime throught isES3
 		#else
 			static inline var isINSTANCED = false; // force compiling without runtimecheck for InstanceDrawing
-		#end
-		#if peoteview_introspectedlayout
-			static var isINTROSPECTED = false;  // is set at runtime throught isES3
-		#else
-			static inline var isINTROSPECTED = false; // force compiling without runtimecheck for introspected uniform layout
 		#end
 		#if peoteview_vertexarrayobjects
 			static var isVAO = false;  // is set at runtime throught isES3
