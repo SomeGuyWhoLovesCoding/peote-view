@@ -277,7 +277,7 @@ class Precision {
 		#if html5
 		else return null;
 		#else
-		else return "mediump";
+		else return "highp";
 		#end
 	}
 	static public inline function availVertexFloat(precision:Null<String>):Null<String> return highest(VertexFloat, precision);
