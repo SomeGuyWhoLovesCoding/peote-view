@@ -51,6 +51,7 @@ class Background
 		
 		if (Precision.availVertexFloat("lowp") != null) precision = "precision lowp float;";
 		else if (Precision.availVertexFloat("mediump") != null) precision = "precision mediump float;";
+		else if (Precision.availVertexFloat("highp") != null) precision = "precision highp float;";
 		
 		var glVertexShader:GLShader = GLTool.compileGLShader(gl, gl.VERTEX_SHADER,
 		precision + "	
@@ -69,6 +70,7 @@ class Background
 		
 		if (Precision.availFragmentFloat("lowp") != null) precision = "precision lowp float;";
 		else if (Precision.availFragmentFloat("mediump") != null) precision = "precision mediump float;";
+		else if (Precision.availFragmentFloat("highp") != null) precision = "precision highp float;";
 		
 		var glFragmentShader:GLShader = GLTool.compileGLShader(gl, gl.FRAGMENT_SHADER,
 		precision + "
